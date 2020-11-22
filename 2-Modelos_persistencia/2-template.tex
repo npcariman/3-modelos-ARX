@@ -1,0 +1,146 @@
+
+\section{Modelo de persistencia}
+
+\subsection{Descripción}
+
+El primer modelo que se utilizará es el de persistencia. Este consiste en mantener el último valor y proyectarlo hacia el futuro. Por lo tanto, el modelo es
+
+\begin{equation}
+	y(t) = y(t-1) + \epsilon_t
+\end{equation}
+
+Y con esto, la predicción es
+
+\begin{equation}
+	\hat{y}_{t+1}(t) = y(t-1)
+\end{equation}
+
+
+\subsection{Entrenamiento}
+
+Este modelo no requiere entrenamiento.
+
+\subsection{Resultados}
+
+En las figuras \ref{fig:M2_grafico_tiempo_1} y \ref{fig:M2_grafico_tiempo_2} se muestra un gráfico para la predicción de la glucosa para todas las predicciones y para la de seis pasos adelante respectivamente.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{2-Modelos_persistencia/figs/grafico_tiempo_1.pdf}
+	\caption{Gráfico de predicción de glucosa para todas las predicciones}
+	\label{fig:M2_grafico_tiempo_1}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{2-Modelos_persistencia/figs/grafico_tiempo_2.pdf}
+	\caption{Gráfico de predicción de glucosa para seis pasos adelante}
+	\label{fig:M2_grafico_tiempo_2}
+\end{figure}
+
+
+\subsubsection*{Error de predicción}
+
+En las figuras \ref{fig:M2_error_train} y \ref{fig:M2_error_test} se puede ver los distintos errores en función del tiempo para el conjunto de entrenamiento como de prueba. Podemos notar que si bien estamos utilizando el modelo más sencillo, hay periodos de tiempo donde el error es cercano a cero, mientras que en otros momentos existen errores superiores a 100 mg/dL, posiblemente explicados por por la ingesta de alimentos o acción de la insulina.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{2-Modelos_persistencia/figs/error_grafico_training.pdf}
+	\caption{Gráfico del error en función del tiempo para el conjunto de entrenamiento}
+	\label{fig:M2_error_train}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{2-Modelos_persistencia/figs/error_grafico_testing.pdf}
+	\caption{Gráfico del error en función del tiempo para el conjunto de prueba}
+	\label{fig:M2_error_test}
+\end{figure}
+
+
+En la tabla \ref{table:M2_error} se puede ver el resumen estadístico de los errores para el conjunto de entrenamiento como de prueba, mientras que en la figura \ref{fig:M2_histograma_error} se muestran los histogramas para cada conjunto. Notar que la media y la mediana para $\epsilon_{t+1}$ y $\epsilon_{t+6}$ son cercanos a cero, y su histograma tiene forma gaussiana, lo que se condice con los gráficos de tiempo mostrados.
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{rrrr|rrr}
+		\hline \hline
+		& \multicolumn{3}{c|}{Entrenamiento} & \multicolumn{3}{c}{Prueba} \\
+		& $\epsilon_{t+1}(t)$  & $\epsilon_{t+6}(t)$       & $\epsilon_{trajectory}(t)$     & $\epsilon_{t+1}(t)$      & $\epsilon_{t+6}(t)$      &$\epsilon_{trajectory}(t)$     \\ \hline
+		\textbf{Número de datos}     & 1151       & 1146      & 1146      & 575     & 570     & 570    \\
+		\textbf{Media}               & -0.091     & -0.54     & 17.45     & 0.071   & 0.73    & 17.38  \\
+		\textbf{Desviación estándar} & 6.95       & 34.89     & 15.79     & 6.98    & 33.19   & 14.55  \\
+		\textbf{Mínimo}              & -45        & -118      & 0.7       & -24     & -121    & 0.41   \\
+		\textbf{25\%}                & -4         & -19       & 5.4       & -4      & -19     & 6.44   \\
+		\textbf{50\%}                & 0          & -1        & 11.95     & 0       & -2      & 13.17  \\
+		\textbf{75\%}                & 3          & 15        & 24.99     & 3       & 18      & 25.27  \\
+		\textbf{Máximo}              & 29         & 124       & 84.31     & 27      & 115     & 77.91  \\ \hline \hline
+	\end{tabular}
+	\caption{Resumen estadístico del error}
+	\label{table:M2_error}
+\end{table}
+
+
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{2-Modelos_persistencia/figs/error_histograma.pdf}
+	\caption{(a) Histograma para el conjunto de entrenamiento; (b) Histograma para el conjunto de prueba}
+	\label{fig:M2_histograma_error}
+\end{figure}
+
+
+En las figuras \ref{fig:M2_error_periodograma_train} y \ref{fig:M2_error_periodograma_test} se muestra el periodograma para cada conjunto, mientras que en las figuras \ref{fig:M2_error_espectro_train} y \ref{fig:M2_error_espectro_test} se muestra una estimación del espectro para 
+una ventana hanning con $\gamma = N/2 - 1$.
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{2-Modelos_persistencia/figs/error_periodograma_training.pdf}
+	\caption{Gráfico del periodograma para el error del conjunto de entrenamiento}
+	\label{fig:M2_error_periodograma_train}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{2-Modelos_persistencia/figs/error_periodograma_testing.pdf}
+	\caption{Gráfico del periodograma para el error del conjunto de prueba}
+	\label{fig:M2_error_periodograma_test}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{2-Modelos_persistencia/figs/error_espectro_training.pdf}
+	\caption{Gráfico de la estimación del espectro para el error del conjunto de entrenamiento}
+	\label{fig:M2_error_espectro_train}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{2-Modelos_persistencia/figs/error_espectro_testing.pdf}
+	\caption{Gráfico de la estimación del espectro para el error del conjunto de prueba}
+	\label{fig:M2_error_espectro_test}
+\end{figure}
+
+\subsubsection*{Métricas}
+
+Los resultados de las métricas obtenidas bajo este método se muestran en la tabla \ref{table:M2_metricas}. Hasta el momento, no se ha calculado TG ni ESOD-n, dado que falta estudiar a profundidad su utilidad y si es útil definirlas para la predicción de un paso adelante o la trayectoria total.
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{rrrr|rrr}
+		\hline \hline
+		& \multicolumn{3}{c|}{Entrenamiento} & \multicolumn{3}{c}{Prueba} \\
+		& $\epsilon_{t+1}$ & $\epsilon_{t+6}$ &$\epsilon_{trajectory}$ & $\epsilon_{t+1}$  & $\epsilon_{t+6}$ & $\epsilon_{trajectory}$ \\ \hline
+		\textbf{RMSE}   & 6.95 & 34.88 & 23.53 & 6.98 & 33.17 & 22.66 \\
+		\textbf{TG}     &      & x     &       &      & x     &       \\
+		\textbf{ESOD-n} &      & x     &       &      & x     &       \\ 
+		\hline \hline
+	\end{tabular}
+	\caption{Resumen de métricas}
+	\label{table:M2_metricas}
+\end{table}
+
+
+
+

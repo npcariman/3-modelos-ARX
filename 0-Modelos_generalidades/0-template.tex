@@ -1,0 +1,164 @@
+
+
+
+
+
+\section{Metodología}
+
+
+
+\subsection{Procesamiento de datos}
+
+\subsubsection*{Base de datos}
+
+La base de datos utilizada cuenta con datos entre el 2020-01-24 17:00:00 al 2020-01-30 16:55:00, es decir, 6 días de información. La variable a predecir será la de medición continua de glucosa \emph{sensor\_glucose}. Este dato se encuentra en una tabla SQL junto a otras variables entregadas por el monitor continuo. Los datos fueron ordenados para tener una tasa de muestreo $T_s$ de 5 minutos.
+Se utilizará la variable $y(t)$ para denotar la variable \emph{sensor\_glucose} medida en el tiempo $t$.
+
+\subsubsection*{Pre procesamiento}
+
+La variable del sensor continuo de glucosa $y(t)$ cuenta con una pequeña pérdida de datos (5 valores), por lo que se realizó una interpolación lineal para manejar este problema. No se utilizó un mecanismo más sofisticado ya que la cantidad de información perdida es poca a comparación de la totalidad de los datos.
+
+\subsubsection*{Datos de entrenamiento y prueba}
+
+El conjunto de datos se dividió en entrenamiento y prueba, con 4 y 2 días respectivamente, es decir, 66,7\% de entrenamiento y 33,3\% de prueba.
+
+\subsection{Entrenamiento, predicción y desempeño}
+
+Para cada algoritmo, se busca generar un modelo predictivo de un paso adelante (5 minutos). Luego, de modo recursivo, se obtendrá una trayectoria de predicción de seis pasos adelante (30 minutos) para finalmente evaluar el desempeño bajo distintos indicadores. 
+
+Denotaremos a la predicción como $\hat{y}_{t+k}(t), k= 1, \dots, 6$ como la predicción de $k$ pasos adelante al tiempo $t$ de $y$. 
+
+\subsubsection*{Entrenamiento y predicción}
+
+Cada algoritmo de predicción será detallado en cada sección, donde se mostrará un gráfico de la variable $y(t)$ y las predicciones a futuro.
+
+\subsubsection*{Desempeño}
+
+Los indicadores de desempeño se indican a continuación:
+
+\begin{itemize}
+
+\item Error de predicción: Para cada modelo, se calcularán tres tipos de errores:
+
+\begin{enumerate}
+	\item Error de un paso adelante: Este se define como
+	
+	\begin{equation}
+		\epsilon_{t+1} (t) = \hat{y}_{t+1}(t) - y(t)
+	\end{equation}
+	
+	\item Error de seis paso adelante: Este se define como
+	
+	\begin{equation}
+	\epsilon_{t+6} (t) = \hat{y}_{t+6}(t) - y(t)
+	\end{equation}
+	
+	\item Error de trayectoria: Este se define como
+	
+	\begin{equation}
+	\epsilon_{trajectory} (t) = 
+	\left[
+	\frac{1}{6}
+	\sum_{k=1}^{6}
+	\left(\hat{y}_{t+k}(t) - y(t)\right)^2
+	\right]^{1/2}
+	\end{equation}
+	
+\end{enumerate}
+
+Notar que el error de trayectoria cuenta una cota inferior (valor mínimo posible es cero) a diferencia de los demás errores. Luego, se presentará como resultado un resumen estadístico e histograma del error, gráficos en función del tiempo y un análisis en frecuencia, donde se mostrará el periodograma definido como
+
+\begin{equation}
+	Y_N(k) = \left| \frac{1}{\sqrt{N}} \sum_{t=1}^{N} y(t) e^{\frac{2\pi ki t}{N}} \right|^2
+\end{equation}
+
+para $k = 1,\dots, N$. También se mostrará una estimación del espectro, definida como
+
+\begin{equation}
+	\hat{\Phi}_y^N(\omega) = \sum_{\tau=-\gamma}^{\gamma} w_\gamma(\tau) \hat{R}_y^N(\tau) e^{-i\tau \omega}
+\end{equation}
+
+con $w_\gamma(\tau)$ una función ventana y $\hat{R}_y^N(\tau)$ la función de autocorrelación definida como
+
+\begin{equation}
+	\hat{R}_y^N(\tau) = \cfrac{1}{N} = \sum_{t = \tau}^{N} u(t)u(t - \tau)
+\end{equation}
+
+El valor de $\gamma$ suele estar limitado a $\gamma = \pm N/2 - 1$, valor que se utilizará generalmente a menos que se indique lo contrario.
+
+\item Error cuadrático medio (RMSE): Este se define como:
+
+\begin{equation}
+	RMSE_{i} = 
+	\left[
+	\frac{1}{N}
+	\sum_{k=1}^{N}
+	\epsilon_{i}(k)^2
+	\right]^{1/2}
+\end{equation}
+
+donde $N$ es el número total de puntos y $\epsilon_{i}(k)$ son los tres errores descritos previamente, obteniendo tres errores cuadráticos medios; uno para un paso adelante, uno para seis pasos adelante y uno para la trayectoria.
+
+\item Ganancia temporal (TG): Esta se define como:
+
+\begin{eqnarray}
+	delay & = & \arg \min _{i \in [0, L]} 
+	\left\{
+	\frac{1}{N-L} \sum_{k=1}^{N-L} \left(
+	\hat{y}_{t+6}(k+i) - y(k)
+	\right)^2
+	\right\} \\
+	TG & = & \left(L - delay\right)\cdot \Delta t
+\end{eqnarray}
+
+con $\Delta t$ correspondiente al tiempo de muestreo y $L$ el horizonte de predicción.
+
+\item Energía normalizada de la diferencia de segundo orden (ESOD-n): Esta se define como:
+
+\begin{eqnarray}
+	ESOD_n & = & \frac{ESOD(\hat{y}_{t+6})}{ESOD(y)} \\
+	& = & 
+	\frac{
+	\sum_{k=3}^{N} \left(
+	\hat{y}_{t+6}(k) - 2 \hat{y}_{t+6}(k - 1) + \hat{y}_{t+6}(k - 2)
+	\right)^2
+	}
+	{
+	\sum_{k=3}^{N} \left(
+	y(k) - 2 y(k - 1) + y(k - 2)
+	\right)^2	
+	}
+\end{eqnarray}
+
+\end{itemize}
+
+
+\section{Resultados - Resumen}
+
+En la tabla \ref{table:Resultados RMSE} se resume el RMSE para los distintos modelos entrenados hasta el momento.
+
+
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{lrrr|rrr}
+		\hline \hline
+		& \multicolumn{3}{c|}{Entrenamiento} & \multicolumn{3}{c}{Prueba} \\
+		& $\epsilon_{t+1}$ & $\epsilon_{t+6}$ &$\epsilon_{trajectory}$ & $\epsilon_{t+1}$  & $\epsilon_{t+6}$ & $\epsilon_{trajectory}$ \\ \hline
+		\textbf{Modelo de persistencia}   				& 6.95 & 34.88 & 23.53 & 6.98 & 33.17 & 22.66 \\
+		\textbf{Modelo AR(2)}   						& 3.91 & 26.45 & 16.84 & 4.36 & 27.39 & 17.96 \\
+		\textbf{Modelo AR(30)} 	   						& 3.64 & 25.65 & 16.35 & 4.21 & 26.18 & 17.27 \\
+		\textbf{Modelo ARX(48, 6) para $u_{meal}$}   	& 3.61 & 26.61 & 16.76 & 4.24 & 27.01 & 17.73 \\
+		\textbf{Modelo ARX(48, 4) para $u_{bolo}$}   	& 3.63 & 27.17 & 17.04 & 4.26 & 27.58 & 18.01 \\
+		\hline \hline
+	\end{tabular}
+	\caption{Resumen del RMSE para los distintos modelos}
+	\label{table:Resultados RMSE}
+\end{table}
+
+
+
+
+
+
+

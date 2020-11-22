@@ -1,0 +1,411 @@
+\section{Modelos ARX}
+
+\subsection{Análisis previo}
+
+
+
+\subsubsection*{Preprocesamiento de la señal autorregresiva}
+
+Para el presente informe, a la señal de salida $y(t)$ se le aplicaron dos filtros para estudiar su comportamiento
+
+\begin{description}
+
+\item[Filtro Savitzky-Golay (SG)] Este filtro tiene la ventaja de preservar características como máximos y mínimos relativos o ancho de los picos. Esta fue implementa mediante la función \emph{savgol\_filter} dentro de la librería \emph{scipy} (dentro de \emph{Signal processing}). Particularmente se utilizó una ventana de tamaño 5 y orden del polinomio de 1. Dado que esta función es no causal, se aplicó un desfase de 2 muestras para que la señal tenga sentido en una aplicación online. Esto último se realizó repitiendo dos veces el valor inicial de la serie.
+
+\item[Filtro media móvil (MM)] Este filtro tiene la ventaja de ser fácil de implementar y que puede ser diseñado de modo causal. Particularmente se utilizó una ventana rectangular (sin alguna forma especial) de 5 muestras. Dada la simplicidad de la misma, este filtro fue programado por el usuario de modo simple.
+
+\end{description}
+
+
+En la figura \ref{fig:y_serie_tiempo} se pueden ver la señal original y las señales filtrada. Notemos que tanto el filtro SG y de MM cuentan con un desfase respecto a la original.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/prep_senales_tiempo.pdf}
+	\caption{Señales en el tiempo: $y(t)$ señal original; $y^{SG}(t)$ señal con filtro Savitzky-Golay; $y^{MM}(t)$ señal filtrada con ventana móvil}
+	\label{fig:y_serie_tiempo}
+\end{figure}
+
+Luego, definimos el error de desfase y fase como
+
+\begin{eqnarray}
+	e_{desfase}(t) & = & y^{filtrada}(t) - y(t) \\
+	e_{fase}(t)    & = & y^{filtrada}(t+T) - y(t)
+\end{eqnarray}
+
+respectivamente, con $T$ el valor del desfase (en este caso, $T=2$). En las figuras \ref{fig:y_error_desfase} y \ref{fig:y_error_fase} se pueden ver dichas señales para la misma ventana de tiempo de la figura \ref{fig:y_serie_tiempo}. En las tablas \ref{table:y_error_desfase} y \ref{table:y_error_fase} se muestran las estadísticas del error de estas señales. Con esto datos podemos notar que el filtro SG cuenta con mejores resultados que el filtro de MM.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/prep_err_desfase_tiempo.pdf}
+	\caption{Señal de error en desfase: $e^{SG}_{desfase}(t)$ error de la señal con filtro Savitzky-Golay; $e^{MM}_{desfase}(t)$ error de la señal filtrada con ventana móvil}
+	\label{fig:y_error_desfase}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/prep_err_fase_tiempo.pdf}
+	\caption{Señal de error en fase: $e^{SG}_{fase}(t)$ error de la señal con filtro Savitzky-Golay; $e^{MM}_{fase}(t)$ error de la señal filtrada con ventana móvil}
+	\label{fig:y_error_fase}
+\end{figure}
+
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{rr|r}
+		\hline \hline
+		&	Filtro Savitzky-Golay & Filtro media móvil \\
+		\hline
+		\textbf{Media}   				& -0.093	& -0.118 	\\
+		\textbf{Desviación estándar}    & 12.48  	& 18.18  	\\
+		\textbf{Máximo} 				& 49.6 		& 71 		\\
+		\textbf{Mínimo} 				& -52.2 	& -70.2 	\\ 
+		\hline \hline
+	\end{tabular}
+	\caption{Resumen de estadísticas del error para las señales desfasadas}
+	\label{table:y_error_desfase}
+\end{table}
+
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{rr|r}
+		\hline \hline
+		&	Filtro Savitzky-Golay 	&  Filtro media móvil 	\\
+		\hline
+		\textbf{Media}   				& -0.00127	& -0.0329 	\\
+		\textbf{Desviación estándar}    & 2.735  	& 6.719  	\\
+		\textbf{Máximo} 				& 16.2		& 26.8 		\\
+		\textbf{Mínimo} 				& -12.8 	& -32.2 	\\ 
+		\hline \hline
+	\end{tabular}
+	\caption{Resumen de estadísticas del error para las señales en fase}
+	\label{table:y_error_fase}
+\end{table}
+
+
+
+
+
+
+
+\subsubsection*{Preprocesamiento de las señales exógenas}
+
+A continuación se describe el procesamiento previo que se les aplicó a las distintas señales exógenas.
+
+\begin{description}
+
+\item[Insulina bolo] La principal variable manipulada es la insulina ultra rápida. En el conjunto de datos, esta cuenta con una acción impulsiva que describe el momento de infusión en el cuerpo humano, pero muchos estudios documentan que sólo es importante el momento en el que alcanza la sangre. Esto puede se representado mediante la determinación de un filtro FIR, para luego convolucionar la señal impulsiva con dicho filtro para obtener un aproximado de la insulina plasmática. A continuación, se describen los distintos filtros utilizados para representar a esta señal.
+
+\begin{description}
+	\item [Entrada impulsiva:] Esta es la señal cruda, sin ningún tipo de procesamiento
+	
+	\item [Filtro gaussiano FIR truncado:] El primer filtro utilizado es uno gaussiano truncado. Los parámetros son \cite{xie2016nonlinear}:
+	
+	\begin{itemize}
+		\item duración $N=72$ (6 horas)
+		
+		\item tiempo muerto $d=3$ (15 minutos)
+		
+		\item media $\mu=12$ (60 minutos)
+		
+		\item desviación estándar $\sigma = 18$ (90 minutos)
+		
+	\end{itemize}
+
+	\item [Modelo de Hovorka]: El modelo de Hovorka se describe según el siguiente sistema \cite{bondia2018insulin}:
+	
+	\begin{eqnarray}
+		\dot{S}_1(t) & = & u_{SC}(t) - \frac{S_1(t)}{t_{maxl}} \\
+		\dot{S}_2(t) & = & \frac{S_1(t)}{t_{maxl}} - \frac{S_2(t)}{t_{maxl}} \\
+		\dot{I}(t) & = & \frac{S_2(t)}{t_{maxl}V_I} - K_e I(t)
+	\end{eqnarray}
+	
+	donde $u_{SC}(t)$ es la entrada impulsiva e $I(t)$ la insulina plasmática. Los parámetros utilizados son $t_{maxl} = 55 min$, $K_e = 0.138 min^{-1}$, $V_i = 0.12 L/Kg$.
+	
+	\item [Modelo biexponencial]: Este modelo se describe según el siguiente sistema \cite{bondia2018insulin}:
+	
+	\begin{eqnarray}
+		\dot{I}_{SC}(t) & = & - \frac{I_{SC}(t)}{\tau_1} + \frac{u_{SC}(t)}{\tau_1K_{CL}} \\
+		\dot{I}(t) & = & - \frac{I(t)}{\tau_2} + \frac{I_{SC}(t)}{\tau_2}
+	\end{eqnarray}
+
+	donde $u_{SC}(t)$ es la entrada impulsiva e $I(t)$ la insulina plasmática. Los parámetros utilizados son $\tau_1 = 55 min$, $\tau_2 = 70 min$, $K_cl = 1 L/min$.
+
+	\item[Modelo de remanencia]: Definiremos la remanencia de la insulina como la proporción de insulina que queda en el cuerpo:
+	
+	\begin{equation}
+		I_{rem}(t) = \int_{0}^{T_{max}} I(t) dt - \int_{0}^{t} I(t) dt
+	\end{equation}
+	
+	Notemos que se puede utilizar cualquier señal o modelo de insulina. Particularmente se utilizó el modelo de Hovorka.
+
+
+
+En la figura \ref{fig:fir_u_bolo} se puede la respuesta de cada uno de estos filtros. Cabe mencionar que todos los filtros fueron normalizados para que su valor máximo fuera de 1. En la figura \ref{fig:serie_tiempo_u_bolo} se puede ver una muestra del sensor continuo en conjunto con la estimación de la señal de insulina para cada filtro.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/fir_u_bolo.pdf}
+	\caption{Respuesta de lo filtros para la insulina}
+	\label{fig:fir_u_bolo}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/serie_tiempo_u_bolo.pdf}
+	\caption{Serie de tiempo de las señales. (a) serie de medición del sensor continuo de glucosa; (b) Serie de tiempo de la estimación de insulina plasmática en la sangre para distintos filtros}
+	\label{fig:serie_tiempo_u_bolo}
+\end{figure}
+
+\end{description}
+
+\item[Comida] Así como la insulina es la principal variable manipulada, la comida es la principal perturbación medible del sistema. Esta también es reportada como un impulso de la cantidad de gramos de hidratos de carbono ingeridos, y es conveniente utilizar un filtro de respuesta finita para representar el sistema. Los utilizados se muestran a continuación:
+
+\begin{description}
+
+\item [Entrada impulsiva:] Esta es la señal cruda, sin ningún tipo de procesamiento
+
+\item [Filtro gaussiano FIR truncado:] El primer filtro utilizado es uno gaussiano truncado. Los parámetros son \cite{xie2016nonlinear}:
+
+\begin{itemize}
+	\item duración $N=36$ (3 horas)
+	
+	\item tiempo muerto $d=3$ (15 minutos)
+	
+	\item media $\mu=8$ (40 minutos)
+	
+	\item desviación estándar $\sigma = 18$ (50 minutos)
+	
+\end{itemize}
+
+\item [Modelo de Hovorka]: El modelo de Hovorka se describe según el siguiente sistema \cite{hovorka2004nonlinear}:
+
+\begin{eqnarray}
+U_G(t) = \frac{D_G A_G t e^{-t/t_{max,G}}}{t_{max,G}^2}
+\end{eqnarray}
+
+donde $U_G(t)$ la comida en el torrente sanguíneo. Los parámetros utilizados son $t_{max,G} = 40 min$, $A_G=0.8$, $D_G = 1$, aunque estos últimos no afectan a la señal dado que esta se normaliza.
+
+\end{description}
+
+
+
+En la figura \ref{fig:fir_u_meal} se puede la respuesta de cada uno de estos filtros. Cabe mencionar que todos los filtros fueron normalizados para que su valor máximo fuera de 1. En la figura \ref{fig:serie_tiempo_u_meal} se puede ver una muestra del sensor continuo en conjunto con la estimación de la señal de insulina para cada filtro.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/fir_u_meal.pdf}
+	\caption{Respuesta de lo filtros para la comida}
+	\label{fig:fir_u_meal}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/serie_tiempo_u_meal.pdf}
+	\caption{Serie de tiempo de las señales. (a) serie de medición del sensor continuo de glucosa; (b) Serie de tiempo de la estimación de comida en la sangre para distintos filtros}
+	\label{fig:serie_tiempo_u_meal}
+\end{figure}
+
+
+
+
+\end{description}
+
+\subsection{Modelo ARX}
+
+\subsubsection*{Descripción}
+
+Un modelo autorregresivo con entrada exógena con orden de regresión $n_a$ y orden de la entrada exógena $n_b$ (ARX$(n_a,n_b)$) se define según la siguiente ecuación:
+
+\begin{equation}
+	y(t) + a_1 y(t-1) \dots + a_{n_a} y(t-n_a) = b_1 u(t-1) \dots b_{n_b} u(t-n_b) + e(t)
+\end{equation}
+
+De esta ecuación, podemos obtener que la predicción del siguiente paso será:
+
+\begin{equation}
+	\hat{y}_{t+1}(t| t - 1) =  - a_1 y(t-1) \dots - a_{n_a} y(t-n_a) + b_1 u(t-1) \dots b_{n_b} u(t-n_b) 
+\end{equation}
+
+donde se explicita que la predicción en el tiempo $t$ depende de los datos conocidos hasta $t - 1$. Luego, si definimos
+
+\begin{eqnarray}
+	\theta  & = & 
+	\begin{bmatrix}
+	a_1 & \dots & a_{n_a} & b_1 & \dots & b_{n_b}
+	\end{bmatrix}^T\\
+	\varphi(t) & = &
+	\begin{bmatrix}
+	-y(t-1) & \dots & -y(t-n_a) & u(t-1) & \dots & u(t-n_b)
+	\end{bmatrix}^T
+\end{eqnarray}
+
+como \emph{vector de parámetros} y \emph{vector de regresión} respectivamente, podemos escribir la predicción de modo compacto como:
+
+\begin{equation}
+	\hat{y}_{t+1}(t | \theta) = \theta^T \varphi(t)
+\end{equation}
+
+Más aún, podemos definir la predicción a $k$ pasos adelante como:
+
+\begin{equation}
+\hat{y}_{t+k}(t | y(t-k); u(t-1); \theta) = \theta^T \varphi(t)
+\end{equation}
+
+Notemos que el valor de $\hat{y}$ depende del vector de parámetros $\theta$, de los datos autorregresivos $y$ hasta $t-k$ y de la entrada exógena $u$ hasta $t-1$.
+
+\subsubsection*{Implementación}
+
+El conjunto completo de datos cuenta con 6 días de datos muestreados cada $T_s = 5$ minutos ($1728$ datos). Los primeros 4 días ($1152$ datos) fueron asignados para entrenamiento y los últimos 2 días para prueba ($576$ datos).
+
+
+Para entrenar el sistema, e utiliza el modelo ARX($n_a, n_b$) SISO, se utilizó la función \verb|ARX| de \emph{MATLAB}. Esta recibe como parámetros el conjunto de dato y el orden del modelo \verb|[na nb nk]|, que representan el orden de la autorregresión, el orden de la entrada exógena y el orden del tiempo muerto de la entrada exógena respectivamente. Para probar el modelo, se fijó \verb|nk =1|, y se fue variando el orden entre 1 y 100 según \verb|na = nb|. Con el modelo generado se extrae el vector de parámetro $\theta$. 
+
+
+Para generar la predicción, consideramos que cada conjunto de datos vienen dados por
+
+\begin{equation}
+	z = \{y(1), u(1), \dots , y(N), u(N) \}
+\end{equation}
+
+luego, si $n=\max\{n_a,n_b\}$ definimos las matrices de datos como:
+
+\begin{eqnarray}
+\varphi_y &=& 
+\begin{bmatrix}
+- \hat{y}_{t+k}(n + k)	& \cdots & - \hat{y}_{t+k}(N)	\\
+\vdots					& \ddots & 		\vdots			\\
+- \hat{y}_{t+1}(n + 1)	& \cdots & - \hat{y}_{t+1}(N-k)	\\
+- 	y(n)				& \cdots & - y(N-k-1)			\\
+\vdots					& \ddots & 		\vdots			\\
+- 	y(1)				& \cdots & - y(N-n-k-1)			\\
+\end{bmatrix}\\
+\varphi_u &=& 
+\begin{bmatrix}
+u(n + k)	& \cdots & u(N)			\\
+\vdots		& \ddots & \vdots		\\
+u(n + 1)	& \cdots & u(N-k)		\\
+u(n)		& \cdots & u(N-k-1)		\\
+\vdots		& \ddots & \vdots		\\
+u(1)		& \cdots & u(N-n-k-1)	\\
+\end{bmatrix}
+\end{eqnarray}
+
+Notemos que la matriz $\varphi_y$ cuenta con los valores a predecir para el tiempo $k$. Al momento inicial, estos valores son dejados en cero y en cada paso de predicción se actualiza su valor. Para predecir los valores para el tiempo $l, 1\leq l \leq k$, se calcula
+
+\begin{equation}
+	\hat{\textbf{y}}_{t+l} = \theta^T 
+	\begin{bmatrix}
+	\varphi_u^l \\ \varphi_y^l
+	\end{bmatrix}
+\end{equation}
+
+con $\varphi_u^l, \varphi_y^l$ las submatrices de de datos para la predicción de $l$ y $\hat{\textbf{y}}_{t+l} = \begin{bmatrix}\hat{y}_{t+l}(n+l) & \cdots & \hat{y}_{t+l}(N)\end{bmatrix}$ los datos predicho $l$ pasos adelante.
+
+
+Dado que se trabajan con distintos ordenes y el número total de datos predichos depende de esto, el cálculo de las métricas considerará el subconjunto de tamaño fijo dado por
+
+\begin{equation}
+	z_{metricas} = \{y(n_{max} + k), \hat{y}_{t+k}(N_{max} + k), \dots
+	y(N), \hat{y}_{t+k}(N),
+	\}
+\end{equation}
+
+donde $n_{max}$ es el orden máximo utilizado (número de iteraciones). De este modo nos aseguramos de que las métricas estén menos influidas por la existencia de segmentos difíciles de predecir y que refleje más la precisión del modelo.
+
+
+
+\subsubsection*{Resultados ARX SISO}
+
+Para evaluar el desempeño, se utilizó la métrica de la raíz del error cuadrático medio (root mean square error o RMSE). Esta está definida como:
+
+\begin{equation}
+	RMSE = \sqrt{\frac{1}{N} \sum_{i=1}^{N} \hat{y}_{t+k}(i) - y(i)^2}
+\end{equation}
+
+En la figura \ref{fig:rmse_bolo_1} y \ref{fig:rmse_bolo_2} se muestran el RMSE las distintas señales del bolo separados por tipo de filtro y conjunto de entrenamiento y prueba respectivamente, para distintos ordenes. Lo mismo se muestra en las figuras \ref{fig:rmse_meal_1} y \ref{fig:rmse_meal_2}.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/rmse_bolo_1.pdf}
+	\caption{$RMSE$ para distintos tipos de entrada señal de bolo para distintos ordenes. (a) datos crudos; (b) datos con filtro gaussiano truncado; (c) datos con filtro del modelo de Hovorka; (d) datos con filtro del modelo biexponencial; (e) datos con filtro de remanencia}
+	\label{fig:rmse_bolo_1}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/rmse_bolo_2.pdf}
+	\caption{$RMSE$ para distintos tipos de entrada señal de bolo para distintos ordenes. (a) conjuntos de entrenamiento; (b) conjuntos de prueba}
+	\label{fig:rmse_bolo_2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/rmse_meal_1.pdf}
+	\caption{$RMSE$ para distintos tipos de entrada señal de comida para distintos ordenes. (a) datos crudos; (b) datos con filtro gaussiano truncado; (c) datos con filtro del modelo de Hovorka}
+	\label{fig:rmse_meal_1}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/rmse_meal_2.pdf}
+	\caption{$RMSE$ para distintos tipos de entrada señal de comida para distintos ordenes. (a) conjuntos de entrenamiento; (b) conjuntos de prueba}
+	\label{fig:rmse_meal_2}
+\end{figure}
+
+
+
+\subsubsection*{Análisis}
+
+En las figuras notamos que el conjunto de entrenamiento tiene una tendencia monótona decreciente, mientras que el conjunto de prueba posee un mínimo dentro del intervalo (no en los extremos), lo que suele denotar sobre entrenamiento.
+
+Notar que los mínimo del conjunto de entrenamiento se alcanzan para ordenes bajos ($n < 8$) con valores cercanos a 25 mg/dL, pero también notamos que existe en las curvas de entrenamiento y pruebas cercano a 25,5 mg/dL donde el orden varía según el modelo utilizado. Para el caso de las señales con los datos crudos, notamos que este cruce ocurre en un orden cercano a $n=25$, lo que equivale a un historial de tiempo cercano a 2 horas. Para los filtros de Hovorka y biexponencial tenemos que el cruce ocurre en ordenes bajos, cercanos a $n=2$ y las curvas se más unidas al variar un poco el orden.
+
+Lo anterior denota que existe una dinámica importante en la absorción de la insulina y comida con información importante para el modelo con un retardo cercano a 2 horas, además de validar que los modelos de Horkova y Biexponencial son más robustos al variar el orden cerca del óptimo.
+
+
+
+\subsubsection*{Resultados ARX MISO}
+
+
+Modificando la matriz de datos de las entradas
+
+\begin{equation}
+	\varphi_u = \begin{bmatrix}
+	\varphi_u^{bolo} \\ \varphi_u^{meal}
+	\end{bmatrix}
+\end{equation}
+
+y el vector de parámetros
+
+\begin{equation}
+	\begin{bmatrix}
+	a_1^{bolo} & \dots & a_{n_a}^{bolo} & a_1^{meal} & \dots & a_{n_a}^{meal} & b_1 & \dots & b_{n_b}
+	\end{bmatrix}^T\\
+\end{equation}
+
+podemos utilizar el modelo para predecir con dos entradas. En las figuras \ref{fig:rmse_bolo_meal_1}, \ref{fig:rmse_bolo_meal_2} y \ref{fig:rmse_bolo_meal_3} se muestran los resultados del RMSE para las entradas de bolos y comida. De estas figuras podemos observar que el error para el conjunto de prueba difícilmente puede bajar de 25 mg/dL, donde al elegir mejor el filtro logramos mayor robustez ante variaciones en el orden del modelo para combinaciones específicas de los filtro para el bolo y la comida.
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/rmse_bolo_meal_1.pdf}
+	\caption{$RMSE$ para distintos tipos de entrada señal de bolo y comida para distintos ordenes}
+	\label{fig:rmse_bolo_meal_1}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/rmse_bolo_meal_2.pdf}
+	\caption{$RMSE$ para distintos tipos de entrada señal de bolo y comida para distintos ordenes}
+	\label{fig:rmse_bolo_meal_2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/rmse_bolo_meal_3.pdf}
+	\caption{$RMSE$ para distintos tipos de entrada señal de bolo y comida para distintos ordenes. (a) conjuntos de entrenamiento; (b) conjuntos de prueba}
+	\label{fig:rmse_bolo_meal_3}
+\end{figure}
+

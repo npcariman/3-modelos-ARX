@@ -1,0 +1,321 @@
+
+\section{Modelos AR}
+
+\subsection{Descripción}
+
+En esta sección se utilizará el modelo autorregresivo AR de orden $n_a$, AR($n_a$). Este se define como
+
+\begin{equation}
+	y(t) = C + a_1 y(t-1) + \dots + a_{n_a} y(t-n_a) + \epsilon_(t)
+\end{equation}
+
+Y con esto, la predicción es
+
+\begin{equation}
+	\hat{y}_{t+1}(t) = C + a_1 y(t-1) + \dots + a_{n_a} y(t - n_a)
+\end{equation}
+
+La librería utilizada fue \emph{Statsmodels} de \emph{Python}, donde el modelo de regresión cuenta con una constante $C$ que no es ponderada por ningún valor previo. Otros programas o librerías no cuentan como esta constante.
+
+
+\subsection{Entrenamiento}
+
+Como se mencionó previamente, se utilizó la librería \emph{Statsmodels} para el entrenamiento. Particularmente se utiliza \emph{AutoReg}, clase que usa el criterio de máxima verosimilitud condicional.
+
+\subsection{Búsqueda de ordenes óptimos}
+
+Para definir los modelos a analizar, se para el orden de la regresión $n_a$ entre 0 y 60, es decir, con un pasado máximo de 5 horas. Con esto se calculó el error del conjunto de entrenamiento y de prueba, donde los resultados se ven en los gráficos \ref{fig:M3_iter_graficos_error} y \ref{fig:M3_iter_graficos_error_log}. De estas figuras notamos que para ordenes de $n_a > 1$ no existen una gran disminución del error. Además notamos que para $n_a$ cercano a 30 pareciera existir un mínimo para el conjunto de pruebas.
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/error_grafico_1.pdf}
+	\caption{Gráfico del error de modelos AR para distintos ordenes de $n_a$}
+	\label{fig:M3_iter_graficos_error}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/error_grafico_1_log.pdf}
+	\caption{Gráfico del error de modelos AR para distintos ordenes de $n_a$ en escala logarítmica}
+	\label{fig:M3_iter_graficos_error_log}
+\end{figure}
+
+Luego, se buscó los valores que minimizaran los distintos conjuntos de entrenamiento, donde se obtuvo que con $n_a=59$ se minimiza el error de entrenamiento (para los tres tipos de error), mientras que para el conjunto de prueba, $n_a=25$ minimiza el error de 1 paso adelante y $n_a=30$ el error de trayectoria y de 6 pasos adelante.
+
+Por otro lado, la función de autocorrelación parcial (PACF) señala que un buen orden para la regresión es $n_a=2$, mientras que en [paper de benchmark] se utilizan ordenes de 3, 6, 9 y 12. En la tabla \ref{table:M3_resultados_distintos_na} se resumen los resultados específicos para estos modelos.
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{rrrr|rrr}
+		\hline \hline
+		& \multicolumn{3}{c|}{Entrenamiento} & \multicolumn{3}{c}{Prueba} \\
+		$n_a$& $\epsilon_{t+1}$ & $\epsilon_{t+6}$ &$\epsilon_{trajectory}$ & $\epsilon_{t+1}$  & $\epsilon_{t+6}$ & $\epsilon_{trajectory}$ \\ \hline
+		2   & 3.91 & 26.47 & 16.84 & 4.36 & 27.39 & 18 \\
+		3   & 3.91 & 26.34 & 16.76 & 4.36 & 27.46 & 18 \\
+		6   & 3.87 & 26.01 & 16.55 & 4.34 & 27.38 & 17.9 \\
+		9   & 3.67 & 25.86 & 16.49 & 4.32 & 27.21 & 17.83 \\
+		12  & 3.65 & 25.9 & 16.45 & 4.25 & 27.27 & 17.86 \\
+		25  & 3.63 & 25.6 & 16.33 & 4.19 & 26.54 & 17.44 \\
+		30  & 3.64 & 25.65 & 16.35 & 4.21 & 26.18 & 17.27 \\
+		59  & 3.54 & 25.06 & 15.95 & 4.3 & 27.76 & 18.22 \\
+		\hline \hline
+	\end{tabular}
+	\caption{Resumen del RMSE para distintos $n_a$}
+	\label{table:M3_resultados_distintos_na}
+\end{table}
+
+En base a lo anterior, se analizó en profundidad los modelos para $n_a$ de 2 y 30, ya que el primero es el modelo más sencillo que tiene un desempeño aceptable, mientras que el segundo es el que minimiza el los errores de 6 pasos adelante y de trayectoria para el conjunto de prueba.
+
+\subsection{Resultados}
+
+\subsubsection{Modelo AR($n_a=2$)}
+
+En las figuras \ref{fig:M3_tiempo_1} y \ref{fig:M3_tiempo_2} se muestra un gráfico para la predicción de la glucosa para todas las predicciones y para la de seis pasos adelante respectivamente.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/grafico_tiempo_na_2_1.pdf}
+	\caption{Gráfico de predicción de glucosa para todas las predicciones para $n_a=2$}
+	\label{fig:M3_tiempo_1}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/grafico_tiempo_na_2_2.pdf}
+	\caption{Gráfico de predicción de glucosa para seis pasos adelante para $n_a=2$}
+	\label{fig:M3_tiempo_2}
+\end{figure}
+
+
+\subsubsection*{Error de predicción}
+
+En las figuras \ref{fig:M3_error_train_na2} y \ref{fig:M3_error_test_na2} se puede ver los distintos errores en función del tiempo para el conjunto de entrenamiento como de prueba. Estos gráficos a simple vista no reflejan mucha diferencia con los obtenidos en el gráfico de persistencia.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/error_grafico_training_n_a_2.pdf}
+	\caption{Gráfico del error en función del tiempo para el conjunto de entrenamiento para $n_a=2$}
+	\label{fig:M3_error_train_na2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/error_grafico_testing_na_2.pdf}
+	\caption{Gráfico del error en función del tiempo para el conjunto de prueba para $n_a=2$}
+	\label{fig:M3_error_test_na2}
+\end{figure}
+
+
+En la tabla \ref{table:M3_error_na2} se puede ver el resumen estadístico de los errores para el conjunto de entrenamiento como de prueba, mientras que en la figura \ref{fig:M3_histograma_error_na2} se muestran los histogramas para cada conjunto. Estos gráficos si reflejan una disminución de la dispersión del error en relación al modelo de persistencia.
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{rrrr|rrr}
+		\hline \hline
+		& \multicolumn{3}{c|}{Entrenamiento} & \multicolumn{3}{c}{Prueba} \\
+		& $\epsilon_{t+1}(t)$  & $\epsilon_{t+6}(t)$       & $\epsilon_{trajectory}(t)$     & $\epsilon_{t+1}(t)$      & $\epsilon_{t+6}(t)$      &$\epsilon_{trajectory}(t)$     \\ \hline
+		\textbf{Número de datos}     & 1150       & 1145      & 1145      & 574     & 569     & 569    \\
+		\textbf{Media}               & 0 	      & 0.14      & 13.28     & 0.09    & 1.5     & 15     \\
+		\textbf{Desviación estándar} & 3.91       & 26.48     & 10.36     & 4.36    & 27.37   & 9.96   \\
+		\textbf{Mínimo}              & -35.76     & -104.76   & 1.04      & -18.44  & -82.46  & 1.18   \\
+		\textbf{25\%}                & -1.74      & -14.9     & 6.28      & -2.04   & -16.66  & 7.75   \\
+		\textbf{50\%}                & 0.1        & 0.47      & 10.56     & 0.1     & 3.44    & 12.5   \\
+		\textbf{75\%}                & 1.64       & 13.36     & 16.39     & 2.02    & 16.81   & 19.61  \\
+		\textbf{Máximo}              & 25.02      & 117.86    & 70.83     & 18.72   & 115.81  & 67.26  \\ \hline \hline
+	\end{tabular}
+	\caption{Resumen estadístico del error para $n_a=2$}
+	\label{table:M3_error_na2}
+\end{table}
+
+
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/error_histograma_na_2.pdf}
+	\caption{(a) Histograma para el conjunto de entrenamiento; (b) Histograma para el conjunto de prueba}
+	\label{fig:M3_histograma_error_na2}
+\end{figure}
+
+\subsubsection*{Análisis en frecuencia}
+
+
+En las figuras \ref{fig:M3_error_periodograma_train_na2} y \ref{fig:M3_error_periodograma_test_na2} se muestra el periodograma para cada conjunto, mientras que en las figuras \ref{fig:M3_error_espectro_train_na2} y \ref{fig:M3_error_espectro_test_na2} se muestra una estimación del espectro para una ventana hanning con $\gamma = N/2 - 1$.
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/error_periodograma_training_na_2.pdf}
+	\caption{Gráfico del periodograma para el error del conjunto de entrenamiento para $n_a = 2$}
+	\label{fig:M3_error_periodograma_train_na2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/error_periodograma_testing_na_2.pdf}
+	\caption{Gráfico del periodograma para el error del conjunto de prueba para $n_a = 2$}
+	\label{fig:M3_error_periodograma_test_na2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/error_espectro_training_na_2.pdf}
+	\caption{Gráfico de la estimación del espectro para el error del conjunto de entrenamiento para $n_a = 2$}
+	\label{fig:M3_error_espectro_train_na2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/error_espectro_testing_na_2.pdf}
+	\caption{Gráfico de la estimación del espectro para el error del conjunto de prueba para $n_a = 2$}
+	\label{fig:M3_error_espectro_test_na2}
+\end{figure}
+
+\subsubsection*{Métricas}
+
+Los resultados de las métricas obtenidas bajo este método se muestran en la tabla \ref{table:M3_metricas_na2}.
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{rrrr|rrr}
+		\hline \hline
+		& \multicolumn{3}{c|}{Entrenamiento} & \multicolumn{3}{c}{Prueba} \\
+		& $\epsilon_{t+1}$ & $\epsilon_{t+6}$ &$\epsilon_{trajectory}$ & $\epsilon_{t+1}$  & $\epsilon_{t+6}$ & $\epsilon_{trajectory}$ \\ \hline
+		\textbf{RMSE}   & 3.91 & 26.45 & 16.84 & 4.36 & 27.39 & 17.96 \\
+		\textbf{TG}     &      & x     &       &      & x     &       \\
+		\textbf{ESOD-n} &      & x     &       &      & x     &       \\ 
+		\hline \hline
+	\end{tabular}
+	\caption{Resumen de métricas}
+	\label{table:M3_metricas_na2}
+\end{table}
+
+
+
+
+
+
+
+\subsubsection{Modelo AR($n_a=30$)}
+
+En las figuras \ref{fig:M3_tiempo_3} y \ref{fig:M3_tiempo_4} se muestra un gráfico para la predicción de la glucosa para todas las predicciones y para la de seis pasos adelante respectivamente.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/grafico_tiempo_na_30_1.pdf}
+	\caption{Gráfico de predicción de glucosa para todas las predicciones para $n_a=30$}
+	\label{fig:M3_tiempo_3}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/grafico_tiempo_na_2_30.pdf}
+	\caption{Gráfico de predicción de glucosa para seis pasos adelante para $n_a=30$}
+	\label{fig:M3_tiempo_4}
+\end{figure}
+
+
+\subsubsection*{Error de predicción}
+
+En las figuras \ref{fig:M3_error_train_na30} y \ref{fig:M3_error_test_na30} se puede ver los distintos errores en función del tiempo para el conjunto de entrenamiento como de prueba. En este caso, no hay mucha diferencia con el modelo AR($n_a=2$).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/error_grafico_training_n_a_30.pdf}
+	\caption{Gráfico del error en función del tiempo para el conjunto de entrenamiento para $n_a=30$}
+	\label{fig:M3_error_train_na30}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/error_grafico_testing_na_30.pdf}
+	\caption{Gráfico del error en función del tiempo para el conjunto de prueba para $n_a=30$}
+	\label{fig:M3_error_test_na30}
+\end{figure}
+
+
+En la tabla \ref{table:M3_error_na30} se puede ver el resumen estadístico de los errores para el conjunto de entrenamiento como de prueba, mientras que en la figura \ref{fig:M3_histograma_error_na30} se muestran los histogramas para cada conjunto. Nuevamente no hay mucha diferencia con el modelo AR($n_a=2$).
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{rrrr|rrr}
+		\hline \hline
+		& \multicolumn{3}{c|}{Entrenamiento} & \multicolumn{3}{c}{Prueba} \\
+		& $\epsilon_{t+1}(t)$  & $\epsilon_{t+6}(t)$       & $\epsilon_{trajectory}(t)$     & $\epsilon_{t+1}(t)$      & $\epsilon_{t+6}(t)$      &$\epsilon_{trajectory}(t)$     \\ \hline
+		\textbf{Número de datos}     & 1122       & 1117      & 1117      & 546     & 541     & 541    \\
+		\textbf{Media}               & 0 	      & -0.05     & 13.13     & 0.02    & 0.21    & 14.4   \\
+		\textbf{Desviación estándar} & 3.64       & 25.66     & 9.75      & 4.21    & 26.2    & 9.54   \\
+		\textbf{Mínimo}              & -34.27     & -88.3     & 1.6       & -18.32  & -80.58  & 1.25   \\
+		\textbf{25\%}                & -1.76      & -14.81    & 6.3       & -1.95   & -16.67  & 7.46   \\
+		\textbf{50\%}                & 0.1        & -0.3      & 10.59     & -0.02   & 2.11    & 11.96  \\
+		\textbf{75\%}                & 1.65       & 13.68     & 16.61     & 1.83    & 14.67   & 19.13  \\
+		\textbf{Máximo}              & 23.35      & 107.47    & 62.63     & 18.7    & 111.77  & 64.9   \\ \hline \hline
+	\end{tabular}
+	\caption{Resumen estadístico del error para $n_a=30$}
+	\label{table:M3_error_na30}
+\end{table}
+
+
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/error_histograma_na_30.pdf}
+	\caption{(a) Histograma para el conjunto de entrenamiento; (b) Histograma para el conjunto de prueba}
+	\label{fig:M3_histograma_error_na30}
+\end{figure}
+
+\subsubsection*{Análisis en frecuencia}
+
+
+En las figuras \ref{fig:M3_error_periodograma_train_na30} y \ref{fig:M3_error_periodograma_test_na30} se muestra el periodograma para cada conjunto, mientras que en las figuras \ref{fig:M3_error_espectro_train_na30} y \ref{fig:M3_error_espectro_test_na30} se muestra una estimación del espectro para una ventana hanning con $\gamma = N/2 - 1$. Estos no muestran diferencia visual con $AR(n_a=2)$. 
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/error_periodograma_training_na_30.pdf}
+	\caption{Gráfico del periodograma para el error del conjunto de entrenamiento para $n_a = 30$}
+	\label{fig:M3_error_periodograma_train_na30}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/error_periodograma_testing_na_30.pdf}
+	\caption{Gráfico del periodograma para el error del conjunto de prueba para $n_a = 30$}
+	\label{fig:M3_error_periodograma_test_na30}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/error_espectro_training_na_30.pdf}
+	\caption{Gráfico de la estimación del espectro para el error del conjunto de entrenamiento para $n_a = 30$}
+	\label{fig:M3_error_espectro_train_na30}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/error_espectro_testing_na_30.pdf}
+	\caption{Gráfico de la estimación del espectro para el error del conjunto de prueba para $n_a = 30$}
+	\label{fig:M3_error_espectro_test_na30}
+\end{figure}
+
+\subsubsection*{Métricas}
+
+Los resultados de las métricas obtenidas bajo este método se muestran en la tabla \ref{table:M3_metricas_na30}.
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{rrrr|rrr}
+		\hline \hline
+		& \multicolumn{3}{c|}{Entrenamiento} & \multicolumn{3}{c}{Prueba} \\
+		& $\epsilon_{t+1}$ & $\epsilon_{t+6}$ &$\epsilon_{trajectory}$ & $\epsilon_{t+1}$  & $\epsilon_{t+6}$ & $\epsilon_{trajectory}$ \\ \hline
+		\textbf{RMSE}   & 3.64 & 25.65 & 16.35 & 4.21 & 26.18 & 17.27 \\
+		\textbf{TG}     &      & x     &       &      & x     &       \\
+		\textbf{ESOD-n} &      & x     &       &      & x     &       \\ 
+		\hline \hline
+	\end{tabular}
+	\caption{Resumen de métricas}
+	\label{table:M3_metricas_na30}
+\end{table}
+

@@ -1,0 +1,145 @@
+\section{Modelos ARX}
+
+\subsection{Preprocesamiento de las señales}
+
+Para entrenar los modelos ARX, se tuvo que preprocesar las señales de los distintos sensores. Todos los conjuntos llevan la señal de glucosa del sensor continuo $y(t)$ y las señales de entrada de bolo $u_{bolo}(t)$ y de comida $u_{meal}(t)$ filtradas con el filtro Hovorka, ya que en informes previos vimos que el resultado de este filtro da buenos resultados para ordenes bajos.
+
+\subsubsection*{Preprocesamiento de lo datos del Equivital}
+
+Debido a la pérdida de datos de ráfaga del sensor Equivital, se crearon 3 grandes conjuntos de datos. A continuación se describe el proceso de filtrado utilizado. 
+
+\begin{description}
+
+\item[heart rate (HR)]: Los datos del HR se obtuvieron seleccionando aquellos valores con un intervalo de confianza mayor al 95\% y que el valor mismo sea mayor a 30 bpm. Luego se agruparon y filtraron mediante una regla de agrupación de promedio. $Ts = 15s$. 
+
+\item[breath rate (BR)]: Los datos del BR se obtuvieron seleccionando los datos que tengan un intervalo de confianza mayor a 95\%. La regla de agrupación utilizada también fue el promedio. $Ts = 15s$.
+
+\item[Temperatura de la piel (temp)]: Se utilizó una regla de agrupación de promedio. $Ts = 15s$.
+
+\item[Intervalo RR (RR)]: Se utilizó una regla de agrupación de promedio. $Ts = 800ms$.
+
+\item[Breathing wave (BW)]: Se utilizó una regla de agrupación de promedio. $Ts = 39ms$
+
+\item[Acelerometros (Lateral\_Acc, Longitudinal\_Acc, Vertical\_Acc)]: Se utilizó una regla de agrupación de promedio. $Ts = 39ms$
+
+\end{description}
+
+Luego de tener los datos a una tasa constante, se realizó una unión con los datos de sensor continuo, creando tres grandes grupos con datos. En la figura \ref{fig:equivital_tiempo} se pueden ver la señal de glucosa continua (CGM) y las distintas señales del Equivital. El tamaño del primer, segundo y tercer grupo es de 143, 95 y 143 respectivamente, lo que en su conjunto equivale a un 22.05\% de los datos totales.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/equivital_tiempo.pdf}
+	\caption{Señales del sensor continuo (azul) y Equivital}
+	\label{fig:equivital_tiempo}
+\end{figure}
+
+
+
+\subsubsection*{Preprocesamiento de lo datos del monitor Holter}
+
+En contraposición con el Equivital donde los datos debieron ser submuestreados, en el monitor Holter la tasa de muestreo es de 15 minutos si este logra realizar una medición correcta, por lo que se debió realizar un llenado de datos. Para obtener una tasa de muestreo de 5 minutos, los datos se mantuvieron hasta obtener una medición nueva correcta. 
+
+Luego de esto, se unieron a los datos de glucosa, comida y bolo para generar dos conjuntos de datos, uno de entrenamiento y uno de pruebas. El resultado se puede ver en la figura \ref{fig:holter_tiempo}. Cabe decir que el conjunto total es un 16.32\% de los datos totales del sensor de glucosa ($N=282$), y los datos de entrenamiento y prueba se separaron en 2/3 y 1/3 respectivamente ($N_{train} = 188$, $N_{test} = 94$).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/holter_tiempo.pdf}
+	\caption{Señales del sensor continuo (azul) y monitor Holter}
+	\label{fig:holter_tiempo}
+\end{figure}
+
+
+
+
+\subsection{Modelo ARX}
+
+La descripción, implementación y métricas del modelo es la misma descrita en el informe pasado.
+
+
+\subsubsection*{Resultados ARX para los datos del equivital}
+
+Como se mencionó previamente, se utilizó como variables de entrada los datos de bolo y comida del filtro de Horkova debido a que obtienen buenos resultados para ordenes bajos. Como conjunto de entrenamiento y prueba, se utilizó el primer y tercer conjunto de datos debido a que eran de características similares. 
+
+Los conjuntos entrenados se enumeran a continuación:
+
+\begin{itemize}
+
+\item bolo y comida (caso base)
+
+\item bolo, comida y HR
+
+\item bolo, comida y BR
+
+\item bolo, comida y temp
+
+\item bolo, comida y RR
+
+\item bolo, comida y $|Acc|$
+
+\item bolo, comida, HR, BR, temp, RR, Acc\_Lateral, Acc\_longitudinal y Acc\_vertical
+\end{itemize}
+
+Se define al primer conjunto como caso base ya que la idea de fondo es poder comparar si algún conjunto de variables obtiene mejores resultados que los modelos típicos. Por otro lado, no se consideró el breathing wave (BW) ya que esta señal es naturalmente una onda con una frecuencia dominante, y al comprimir los datos mediante el promedio se pierde la mayor parte de la información. Además es altamente probable que BR sea estimada a partir de BW, por lo que esta variable contiene información de BW. 
+
+También vale la pena mencionar que HR y RR están relacionadas (una es la inversa de la otra), por lo que se espera que sus modelos sean similares. Finalmente mencionar que $|Acc|$ se estimo según la ecuación \ref{eq_acc}, ya que los acelerómetros describen la aceleración de cada eje, y la norma euclidiana es una buena manera de comprimir dicha información.
+
+\begin{equation}\label{eq_acc}
+	|Acc| = \sqrt{Acc\_Lateral^2 + Acc\_longitudinal^2 +Acc\_vertical^2 }
+\end{equation}
+
+Los resultados se puede ver en las figuras \ref{fig:rmse_equivital_separados} y \ref{fig:rmse_equivital_todos}. Es importante mencionar que el modelo que utiliza todas las variables logra disminuir el error cerca de cero para el conjunto de entrenamiento, pero el error para la prueba crece muy rápido, lo que indica un sobre entrenamiento fuerte.
+
+También podemos notar que la mayoría de los modelos se mueven cerca pero por debajo del error del caso base para el conjunto de entrenamiento, pero el conjunto de prueba revela cuales modelos podrían efectivamente predecir de mejor modo. En particular vemos que la variable RR, $|acc|$ y temp superar un poco el caso base, pero no de modo tan drástico. 
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/rmse_equivital_separados.pdf}
+	\caption{$RMSE$ para distintos conjuntos de entrada con los datos del Equivital}
+	\label{fig:rmse_equivital_separados}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/rmse_equivital_todos.pdf}
+	\caption{$RMSE$ para distintos conjuntos de entrada con los datos del Equivital para los conjuntos de entrenamiento y prueba}
+	\label{fig:rmse_equivital_todos}
+\end{figure}
+
+
+\subsubsection*{Resultados ARX para los datos del dispositivo Holter}
+
+para los datos del holter se utilizaron los siguientes conjuntos para los modelos
+
+\begin{itemize}
+	\item bolo y comida (caso base)
+	
+	\item bolo, comida y sístole
+	
+	\item bolo, comida y diástole
+	
+	\item bolo, comida y HR
+	
+	\item bolo, comida y mean
+	
+	\item bolo, comida, Sistole, diástole, HR, y mean
+\end{itemize}
+
+Mencionar que mean es un promedio ponderado entre los datos de sístole y diástole. Los resultados se pueden ver en \ref{fig:rmse_holter_separados} y \ref{fig:rmse_holter_todos}. Aquí podemos observar que en la mayoría de los conjuntos el resultado es mejor que en el caso base (excepto para el modelo con todas las variables, que tiene un comportamiento más errático). Particularmente notamos que el menor RMSE se obtiene al agregar las mediciones de la sístole.
+
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/rmse_holter_separados.pdf}
+	\caption{$RMSE$ para distintos conjuntos de entrada con los datos del Holter}
+	\label{fig:rmse_holter_separados}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/rmse_holter_todos.pdf}
+	\caption{$RMSE$ para distintos conjuntos de entrada con los datos del Holter para los conjuntos de entrenamiento y prueba}
+	\label{fig:rmse_holter_todos}
+\end{figure}
+
+

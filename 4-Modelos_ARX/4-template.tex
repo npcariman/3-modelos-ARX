@@ -1,0 +1,312 @@
+
+\section{Modelos ARX}
+
+\subsection{Descripción}
+
+El siguiente grupo de algoritmos a utilizar son los modelos autorregresivos con entradas exógenas ARX. Un modelo ARX($n_a$, $n_b$) se define como
+
+\begin{equation}
+	y(t) + a_1 y(t-1) + \dots  + a_{n_a}y(t-n_a) = 
+	b_1 u(t-1) + \dots + b_{n_b} u(t-n_b) +\epsilon_t
+\end{equation}
+
+con $n_a$ el orden de la regresión y $n_b$ el orden de la entrada exógena. Con esto, la predicción es
+
+\begin{equation}
+	\hat{y}_{t+1}(t) = -a_1 y(t-1) - \dots - -a_{n_a} y(t-n_a) 
+	+ b_1 u(t-1) + \dots + b_{n_b} u(t-n_b)
+\end{equation}
+
+Las entradas exógenas a analizar serán las de alimentos y bolo de insulina, denominadas $u_{meal}$ y $u_{bolo}$ respectivamente. Los modelos entrenados sólo consideran una de las dos variables, es decir, un sistema SISO, por lo que falta realizar un modelo combinando ambas entradas.
+
+
+\subsection{Entrenamiento}
+
+La librería \emph{statsmodels} para \emph{Python}  cuenta con un modelo para entrar modelos ARX, pero está optimizada solo para regresiones, y la entrada exógena tolerable tiene orden 1. El resto de las librerías utilizadas cuentan con el mismo problema. Por lo tanto, para poder entrenar los modelos, se utilizó \emph{MATlAB}, ya que cuenta con funciones de estimación de modelos ARX optimizados en sistemas dinámicos.
+
+Dado que la función utilizada por \emph{MATLAB} es rápida (utiliza factorización $QR$ para resolver las ecuaciones lineales de la estimación de mínimos cuadrados), se realizó un barrido tanto para $n_a$ y $n_b$ entre 1 y 60 para el conjunto de entrenamiento como de prueba. Para cada modelo se calculó el RMSE$_{t+6}$, y se extrajo la combinación que minimizara el conjunto de prueba. Finalmente, se importaron los parámetros de estos modelos a \emph{Python} y se analizaron en detalle.
+
+\subsection{Búsqueda de combinaciones óptimas}
+
+En las figuras \ref{fig:M4_RMSE_meal} y \ref{fig:M4_RMSE_bolo} se puede ver el resultado de la búsqueda para la combinación óptima de $n_a$ y $n_b$ para el RMSE$_{t+6}$. Notar que para ambas figuras el conjunto de entrenamiento y de prueba tienen un comportamiento similar, donde la tendencia es siempre mejorar al aumentar el orden de $n_a$ y $n_b$ para el entrenamiento, pero el gráfico del conjunto de prueba muestra que esto genera un sobreentrenamiento. El valor mínimo se alcanza para $n_a=48$ y $n_b=6$ para $u_{meal}$ y $n_a=48$ y $n_b=4$ para $u_{bolo}$. Adicionalmente es interesante notar que que para $n_a > 1$ y $n_b$ libre, el error se mueve entre 24 y 26 mg/dL, por lo que un modelo más complejo podría generar un beneficio pequeño.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/RMSE_meal.pdf}
+	\caption{Gráfico de RMSE$_{t+6}$ para entrada $u_{meal}$. (a) Conjunto de entrenamiento; (b) Conjunto de prueba}
+	\label{fig:M4_RMSE_meal}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/RMSE_bolo.pdf}
+	\caption{Gráfico de RMSE$_{t+6}$ para entrada $u_{bolo}$. (a) Conjunto de entrenamiento; (b) Conjunto de prueba}
+	\label{fig:M4_RMSE_bolo}
+\end{figure}
+
+Por lo mismo, se analizarán los dos casos señalados previamente, es decir ARX($48,6$) para $u_{meal}$ y ARX($48,4$) para $u_{bolo}$.
+
+
+\subsection{Resultados}
+
+\subsubsection{Modelo ARX($4,6$) para $u_{meal}$}
+
+En las figuras \ref{fig:M4_grafico_tiempo_1_meal} y \ref{fig:M4_grafico_tiempo_2_meal} se muestra un gráfico para la predicción de la glucosa para todas las predicciones y para la de seis pasos adelante respectivamente. Cada gráfico tiene un indicador de cuando ocurrió un evento de ingesta de comida.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/grafico_tiempo_na_48_nb_6_1_meal.pdf}
+	\caption{Gráfico de predicción de glucosa para todas las predicciones para ARX($48, 6$)}
+	\label{fig:M4_grafico_tiempo_1_meal}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/grafico_tiempo_na_48_nb_6_2_meal.pdf}
+	\caption{Gráfico de predicción de glucosa para seis pasos adelante para ARX($48, 6$)}
+	\label{fig:M4_grafico_tiempo_2_meal}
+\end{figure}
+
+
+\subsubsection*{Error de predicción}
+
+En las figuras \ref{fig:M4_error_train_meal} y \ref{fig:M4_error_test_meal} se puede ver los distintos errores en función del tiempo para el conjunto de entrenamiento como de prueba.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/error_grafico_training_na_48_nb_6_meal.pdf}
+	\caption{Gráfico del error en función del tiempo para el conjunto de entrenamiento para ARX($48, 6$)}
+	\label{fig:M4_error_train_meal}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/error_grafico_testing_na_48_nb_6_meal.pdf}
+	\caption{Gráfico del error en función del tiempo para el conjunto de prueba para ARX($48, 6$)}
+	\label{fig:M4_error_test_meal}
+\end{figure}
+
+
+En la tabla \ref{table:M4_error_meal} se puede ver el resumen estadístico de los errores para el conjunto de entrenamiento como de prueba, mientras que en la figura \ref{fig:M4_histograma_error_meal} se muestran los histogramas para cada conjunto.
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{rrrr|rrr}
+		\hline \hline
+		& \multicolumn{3}{c|}{Entrenamiento} & \multicolumn{3}{c}{Prueba} \\
+		& $\epsilon_{t+1}(t)$  & $\epsilon_{t+6}(t)$       & $\epsilon_{trajectory}(t)$     & $\epsilon_{t+1}(t)$      & $\epsilon_{t+6}(t)$      &$\epsilon_{trajectory}(t)$     \\ \hline
+		\textbf{Número de datos}     & 1104       & 1099      & 1099      & 528     & 523     & 523    \\
+		\textbf{Media}               & -0.11      & -1.67     & 13.23     & -0.14   & -2.09   & 14.69  \\
+		\textbf{Desviación estándar} & 3.61       & 26.57     & 10.3      & 4.24    & 27.02   & 9.92   \\
+		\textbf{Mínimo}              & -33.37     & -103.35   & 1.42      & -18.78  & -90.75  & 1      \\
+		\textbf{25\%}                & -1.89      & -15.88    & 5.99      & -2.18   & -18.85  & 7.16   \\
+		\textbf{50\%}                & -0.11      & -3.48     & 10.1      & -0.39   & -2.31   & 12.09  \\
+		\textbf{75\%}                & 1.55       & 10.63     & 17.18     & 1.68    & 12.27   & 19.76  \\
+		\textbf{Máximo}              & 23.29      & 138.5     & 79.77     & 18.24   & 104.23  & 60.41  \\ \hline \hline
+	\end{tabular}
+	\caption{Resumen estadístico del error}
+	\label{table:M4_error_meal}
+\end{table}
+
+
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/error_histograma_na_48_nb_6_meal.pdf}
+	\caption{(a) Histograma para el conjunto de entrenamiento; (b) Histograma para el conjunto de prueba}
+	\label{fig:M4_histograma_error_meal}
+\end{figure}
+
+
+
+\subsubsection*{Análisis en frecuencia}
+
+
+En las figuras \ref{fig:M4_error_periodograma_train_meal} y \ref{fig:M4_error_periodograma_test_meal} se muestra el periodograma para cada conjunto, mientras que en las figuras \ref{fig:M4_error_espectro_train_meal} y \ref{fig:M4_error_espectro_test_meal} se muestra una estimación del espectro para una ventana hanning con $\gamma = N/2 - 1$.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/error_periodograma_training_na_48_nb_6_meal.pdf}
+	\caption{Gráfico del periodograma para el error del conjunto de entrenamiento para ARX($48, 6$)}
+	\label{fig:M4_error_periodograma_train_meal}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/error_periodograma_testing_na_48_nb=6_meal.pdf}
+	\caption{Gráfico del periodograma para el error del conjunto de prueba para ARX($48, 6$)}
+	\label{fig:M4_error_periodograma_test_meal}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/error_espectro_training_na_48_nb_6_meal.pdf}
+	\caption{Gráfico de la estimación del espectro para el error del conjunto de entrenamiento para ARX($48, 6$)}
+	\label{fig:M4_error_espectro_train_meal}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/error_espectro_testing_na_48_nb_6_meal.pdf}
+	\caption{Gráfico de la estimación del espectro para el error del conjunto de prueba para ARX($48, 6$)}
+	\label{fig:M4_error_espectro_test_meal}
+\end{figure}
+
+\subsubsection*{Métricas}
+
+Los resultados de las métricas obtenidas bajo este método se muestran en la tabla \ref{table:M4_metricas_meal}. Hasta el momento, no se ha calculado TG ni ESOD-n, dado que falta estudiar a profundidad su utilidad y si es útil definirlas para la predicción de un paso adelante o la trayectoria total.
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{rrrr|rrr}
+		\hline \hline
+		& \multicolumn{3}{c|}{Entrenamiento} & \multicolumn{3}{c}{Prueba} \\
+		& $\epsilon_{t+1}$ & $\epsilon_{t+6}$ &$\epsilon_{trajectory}$ & $\epsilon_{t+1}$  & $\epsilon_{t+6}$ & $\epsilon_{trajectory}$ \\ \hline
+		\textbf{RMSE}   & 3.61 & 26.61 & 16.76 & 4.24 & 27.01 & 17.73 \\
+		\textbf{TG}     &      & x     &       &      & x     &       \\
+		\textbf{ESOD-n} &      & x     &       &      & x     &       \\ 
+		\hline \hline
+	\end{tabular}
+	\caption{Resumen de métricas para ARX($48, 6$)}
+	\label{table:M4_metricas_meal}
+\end{table}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\subsubsection{Modelo ARX($4,4$) para $u_{bolo}$}
+
+En las figuras \ref{fig:M4_grafico_tiempo_1_bolo} y \ref{fig:M4_grafico_tiempo_2_bolo} se muestra un gráfico para la predicción de la glucosa para todas las predicciones y para la de seis pasos adelante respectivamente. Cada gráfico tiene un indicador de cuando ocurrió un evento de inyección de insulina.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/grafico_tiempo_na_48_nb_4_1_bolo.pdf}
+	\caption{Gráfico de predicción de glucosa para todas las predicciones para ARX($48, 4$)}
+	\label{fig:M4_grafico_tiempo_1_bolo}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/grafico_tiempo_na_48_nb_4_2_bolo.pdf}
+	\caption{Gráfico de predicción de glucosa para seis pasos adelante para ARX($48, 4$)}
+	\label{fig:M4_grafico_tiempo_2_bolo}
+\end{figure}
+
+
+\subsubsection*{Error de predicción}
+
+En las figuras \ref{fig:M4_error_train_bolo} y \ref{fig:M4_error_test_bolo} se puede ver los distintos errores en función del tiempo para el conjunto de entrenamiento como de prueba.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/error_grafico_training_na_48_nb_4_bolo.pdf}
+	\caption{Gráfico del error en función del tiempo para el conjunto de entrenamiento para ARX($48, 4$)}
+	\label{fig:M4_error_train_bolo}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/error_grafico_testing_na_48_nb_4_bolo.pdf}
+	\caption{Gráfico del error en función del tiempo para el conjunto de prueba para ARX($48, 4$)}
+	\label{fig:M4_error_test_bolo}
+\end{figure}
+
+
+En la tabla \ref{table:M4_error_bolo} se puede ver el resumen estadístico de los errores para el conjunto de entrenamiento como de prueba, mientras que en la figura \ref{fig:M4_histograma_error_bolo} se muestran los histogramas para cada conjunto. En comparación con el las pruebas con entrada de ingestas de comida, este modelo presenta mayor dispersión de los valores, aunque la diferencia es bastante pequeña.
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{rrrr|rrr}
+		\hline \hline
+		& \multicolumn{3}{c|}{Entrenamiento} & \multicolumn{3}{c}{Prueba} \\
+		& $\epsilon_{t+1}(t)$  & $\epsilon_{t+6}(t)$       & $\epsilon_{trajectory}(t)$     & $\epsilon_{t+1}(t)$      & $\epsilon_{t+6}(t)$      &$\epsilon_{trajectory}(t)$     \\ \hline
+		\textbf{Número de datos}     & 1104       & 1099      & 1099      & 528     & 523     & 523    \\
+		\textbf{Media}               & -0.1       & -1.73     & 13.47     & -0.14   & -2.07   & 14.98  \\
+		\textbf{Desviación estándar} & 3.63       & 27.12     & 10.45     & 4.26    & 27.053  & 10     \\
+		\textbf{Mínimo}              & -33.45     & -111.31   & 1.42      & -18.66  & -97.86  & 1.01   \\
+		\textbf{25\%}                & -1.92      & -15.93    & 6.05      & -2.31   & -18.15  & 7.41   \\
+		\textbf{50\%}                & -0.04      & -3.04     & 10.3      & -0.366  & -3.04   & 12.61  \\
+		\textbf{75\%}                & 1.55       & 11.52     & 17.72     & 1.79    & 13.14   & 20.04  \\
+		\textbf{Máximo}              & 23.34      & 127.39    & 73.96     & 18.15   & 104.02  & 60.02  \\ \hline \hline
+	\end{tabular}
+	\caption{Resumen estadístico del error}
+	\label{table:M4_error_bolo}
+\end{table}
+
+
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/error_histograma_na_48_nb_4_bolo.pdf}
+	\caption{(a) Histograma para el conjunto de entrenamiento; (b) Histograma para el conjunto de prueba}
+	\label{fig:M4_histograma_error_bolo}
+\end{figure}
+
+
+
+\subsubsection*{Análisis en frecuencia}
+
+
+En las figuras \ref{fig:M4_error_periodograma_train_bolo} y \ref{fig:M4_error_periodograma_test_bolo} se muestra el periodograma para cada conjunto, mientras que en las figuras \ref{fig:M4_error_espectro_train_bolo} y \ref{fig:M4_error_espectro_test_bolo} se muestra una estimación del espectro para una ventana hanning con $\gamma = N/2 - 1$.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/error_periodograma_training_na_48_nb_4_bolo.pdf}
+	\caption{Gráfico del periodograma para el error del conjunto de entrenamiento para ARX($48, 4$)}
+	\label{fig:M4_error_periodograma_train_bolo}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/error_periodograma_testing_na_48_nb_4_bolo.pdf}
+	\caption{Gráfico del periodograma para el error del conjunto de prueba para ARX($48, 4$)}
+	\label{fig:M4_error_periodograma_test_bolo}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/error_espectro_training_na_48_nb_4_bolo.pdf}
+	\caption{Gráfico de la estimación del espectro para el error del conjunto de entrenamiento para ARX($48, 4$)}
+	\label{fig:M4_error_espectro_train_bolo}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{4-Modelos_ARX/figs/error_espectro_testing_na_48_nb_4_bolo.pdf}
+	\caption{Gráfico de la estimación del espectro para el error del conjunto de prueba para ARX($48, 4$)}
+	\label{fig:M4_error_espectro_test_bolo}
+\end{figure}
+
+\subsubsection*{Métricas}
+
+Los resultados de las métricas obtenidas bajo este método se muestran en la tabla \ref{table:M4_metricas_bolo}. Hasta el momento, no se ha calculado TG ni ESOD-n, dado que falta estudiar a profundidad su utilidad y si es útil definirlas para la predicción de un paso adelante o la trayectoria total.
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{rrrr|rrr}
+		\hline \hline
+		& \multicolumn{3}{c|}{Entrenamiento} & \multicolumn{3}{c}{Prueba} \\
+		& $\epsilon_{t+1}$ & $\epsilon_{t+6}$ &$\epsilon_{trajectory}$ & $\epsilon_{t+1}$  & $\epsilon_{t+6}$ & $\epsilon_{trajectory}$ \\ \hline
+		\textbf{RMSE}   & 3.63 & 27.17 & 17.04 & 4.26 & 27.58 & 18.01 \\
+		\textbf{TG}     &      & x     &       &      & x     &       \\
+		\textbf{ESOD-n} &      & x     &       &      & x     &       \\ 
+		\hline \hline
+	\end{tabular}
+	\caption{Resumen de métricas para ARX($48, 4$)}
+	\label{table:M4_metricas_bolo}
+\end{table}
+

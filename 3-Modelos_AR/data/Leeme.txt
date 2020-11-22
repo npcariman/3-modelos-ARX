@@ -1,0 +1,6 @@
+AR_1 -> Contiene el procesamiento y determinacion de parametros para modelos AR con datos crudos. 
+	El mejor resultado pareciera ser AR(2).
+
+AR_2 -> Modelo AR con datos filtrados (filtro FIR).
+
+AR_3 -> Modelo AR con filtro de media movil (orden 5).

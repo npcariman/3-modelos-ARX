@@ -1,0 +1,282 @@
+
+\section{Modelos AR}
+
+\subsection{Análisis previo}
+
+\subsubsection{Estructura general AR}
+
+Una modelo $AR(n_a)$ se define como
+
+\begin{equation}
+	y(t) + a_1 y(t-1) + \dots + a_{n_a} (t - n_a) = e(t)
+\end{equation}
+
+Introduciendo el polinomio $A(q) = 1 + a_1 q^{-1} + \dots + a_{n_a} q^{-n_a}$ (en función del operador \emph{delay} $q$), la ecuación anterior se puede reescribir como:
+
+\begin{equation}
+	A(q) y(t) = e(t)
+\end{equation}
+
+Luego, definiendo el vector de parámetros $\theta$ como
+
+\begin{equation}
+	\theta = \left[a_1 \ a_2 \ \dots \ a_{n_a}\right]
+\end{equation}
+
+y el vector de regresión
+
+\begin{equation}
+	\varphi(t) = \left[-y(t-1) \ -y(t-2) \ \dots \ -y(t-n_a)\right]
+\end{equation}
+
+con lo que se obtiene que la predicción es
+
+\begin{equation}
+	\hat{y} (t|\theta) = \theta^T \varphi (t) 
+\end{equation}
+
+
+\subsubsection{Preprocesamiento de datos}
+
+Los datos que se utilizaran en los modelos $AR$ serán los datos de glicemia crudos y unos pasados por dos tipos de filtros, el primero un filtro FIR y un promedio móvil.
+
+\begin{itemize}
+	
+\item El filtro FIR que se utiliza está diseñado para tener una frecuencia de pasabanda en $0.25 mHz$ y frecuencia de rechazabanda de $0.5 mHz$. Además, cuenta con corrección de fase, generando que este filtro sea no causal.
+
+\item El filtro de ventana móvil utiliza una venta de 5 muestras con una ventana rectangular. Este no cuenta con corrección de fase, por lo que puede clasificarse como un filtro causal.
+
+\end{itemize}
+
+Adicionalmente se trabajan obtuvo las diferencias de la señal, con el fin de poder trabajar con un modelo integral (modelo $ARI$). Muchas señales suelen no ser estacionarias pero su diferencia si, por lo que probar trabajar con esta transformación puede tener un mejor resultado.
+
+En la figura \ref{fig:M3_pre_tiempo} y \ref{fig:M3_pre_tiempo_diff} se puede ver un día completo de las señales en el tiempo. Aquí podemos ver que visualmente el filtro FIR sigue aceptablemente bien a la señal original, mientras que el filtro de ventana móvil sigue la forma con el desfase esperado. Por otro lado, en las señales diferenciales podemos ver más claramente el efecto de ambos filtros en relación a las variaciones de la señal original.
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/prep_senales_tiempo.pdf}
+	\caption{Gráfico de señales en el tiempo: $y(t)$ señal original; $y_1(t)$ señal filtrada con FIR; $y_2(t)$ señal filtrada con ventana móvil}
+	\label{fig:M3_pre_tiempo}
+\end{figure}
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/prep_senales_diferenciales_tiempo.pdf}
+	\caption{Gráfico de señales diferencial en el tiempo: $y(t)$ señal original; $y_1(t)$ señal filtrada con FIR; $y_2(t)$ señal filtrada con ventana móvil}
+	\label{fig:M3_pre_tiempo_diff}
+\end{figure}
+
+
+Luego, en las figuras \ref{fig:M3_pre_tiempo_periodograma} y \ref{fig:M3_pre_tiempo_periodograma_diff} podemos ver los periodogramas de las señales y de sus diferencias. Aquí se puede ver el efecto del filtro FIR, que genera una fuerte caída en la rechazabanda, a diferencia de la ventana móvil que tiene un efecto menos fuerte sobre el periodograma.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/prep_senales_periodograma.pdf}
+	\caption{Gráfico del periodograma de las señales: $y(t)$ señal original; $y_1(t)$ señal filtrada con FIR; $y_2(t)$ señal filtrada con ventana móvil}
+	\label{fig:M3_pre_tiempo_periodograma}
+\end{figure}
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/prep_senales_diferenciales_periodograma.pdf}
+	\caption{Gráfico del periodograma de las señales diferenciales: $y(t)$ señal original; $y_1(t)$ señal filtrada con FIR; $y_2(t)$ señal filtrada con ventana móvil}
+	\label{fig:M3_pre_tiempo_periodograma_diff}
+\end{figure}
+
+
+Finalmente, en la figura \ref{fig:M3_ACF y PACF} se muestran los resultados de la función de autocorrelación (ACF) y autocorrelación partial (PACF) para cada grupo de señales. Estas fueron obtenidas con la librería \emph{statmodels} de Python. Aquí notamos que la autocorrelación partial para las señales originales (no diferenciadas) están fuera de rango, lo que indica que esta señal no cumple con ser lo suficiente estacionaria, mientras que las señales diferenciales si muestran el comportamiento esperado. 
+
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/prep_acf_pacf.pdf}
+	\caption{Gráfico del periodograma de las señales diferenciales: $y(t)$ señal original; $y_1(t)$ señal filtrada con FIR; $y_2(t)$ señal filtrada con ventana móvil}
+	\label{fig:M3_ACF y PACF}
+\end{figure}
+
+
+\subsection{Resultados}
+
+
+
+\subsubsection{Modelo AR con datos crudos}
+
+Dado el poder de computo y simplicidad del modelo, se iteró para $n_a$ entre 1 y 100. Se evaluó el desempeño utilizando RMSE, y su resultado se puede ver en la figura \ref{fig:M3_AR1_RMSE}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/AR_1_RMSE.PNG}
+	\caption{Gráfico del RMSE para distintos ordenes del modelo}
+	\label{fig:M3_AR1_RMSE}
+\end{figure}
+
+Aquí notamos que existe un cambio bastante brusco entre $n_a$ de 1 a 2, luego se mantiene relativamente constante hasta 30, entre 40 y 80 pareciera haber sobre entrenamiento y al en el tramo final, entre 90 y 100 caen nuevamente las métricas. Esto podría indicar que existe algún tipo de \emph{seasonary} entrando a esta zona, o que los transientes de alimentación son despreciados en esta zona.
+
+
+Luego, en la figura \ref{fig:M3_AR1_theta} se puede ver los valores de los parámetros de $\theta$ para distintos ordenes. Aquí es importante notar que la mayoría de los ordenes utilizan bastante los primeros dos parámetros, mientras que los de mayor orden tienden a irse a cero. Por lo mismo, se puede concluir que un modelo autoregresivo de orden 2, $AR(2)$ es el modelo más simple que cumple con lo deseado.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/AR_1_theta.PNG}
+	\caption{Gráfico parámetros de $\theta$ para distintos ordenes del modelo}
+	\label{fig:M3_AR1_theta}
+\end{figure}
+
+En la figura \ref{fig:M3_AR1_grafico_tiempo} y \ref{fig:M3_AR1_grafico_error} se puede ver el gráfico en el tiempo y los gráficos del error respectivamente. En la tabla \ref{table:M3_AR1_metricas} se pueden el resumen de las métricas.
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/AR_1_grafico_tiempo.PNG}
+	\caption{Gráfico de serie de tiempo real vs comparada para AR(2)}
+	\label{fig:M3_AR1_grafico_tiempo}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/AR_1_error_grafico.PNG}
+	\caption{Gráfico de error para el training y testingo de modelo AR(2)}
+	\label{fig:M3_AR1_grafico_error}
+\end{figure}
+
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{rr|r}
+		\hline \hline
+		&	Entrenamiento & Prueba \\
+		\hline
+		\textbf{RMSE}   				& 27.68 & 28.72 \\
+		\textbf{Media}     				& 3.06  & 2.54  \\
+		\textbf{Desviación estándar} 	& 27.53 & 28.63 \\ 
+		\hline \hline
+	\end{tabular}
+	\caption{Resumen de métricas para datos crudos}
+	\label{table:M3_AR1_metricas}
+\end{table}
+
+
+
+
+
+
+\subsubsection{Modelo AR con filtro FIR}
+
+Nuevamente se iteró utilizando el poder computacional, obteniendo el gráfico de la figura \ref{fig:M3_AR2_RMSE}.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/AR_2_RMSE.PNG}
+	\caption{Gráfico del RMSE para distintos ordenes del modelo}
+	\label{fig:M3_AR2_RMSE}
+\end{figure}
+
+De este gráfico podemos notar que si se ve que al aumentar el orden del modelo se disminuye drásticamente el RMSE, donde se ve que se alcanza un valor aceptable cercano a $n_a=20$.
+
+
+Respecto al comportamiento del vector de parámetros $\theta$, podemos apreciar que tiene un comportamiento menos marcado en la figura \ref{fig:M3_AR2_theta}, donde dentro de los primeros 20 valores se obtienen parámetros bastante altos, volviendo este modelo inestable y muy sensible a ruidos en las mediciones.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/AR_2_theta.PNG}
+	\caption{Gráfico parámetros de $\theta$ para distintos ordenes del modelo}
+	\label{fig:M3_AR2_theta}
+\end{figure}
+
+En la figura \ref{fig:M3_AR2_grafico_tiempo} y \ref{fig:M3_AR2_grafico_error} se puede ver el gráfico en el tiempo y los gráficos del error respectivamente. En la tabla \ref{table:M3_AR2_metricas} se pueden el resumen de las métricas.
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/AR_2_grafico_tiempo.PNG}
+	\caption{Gráfico de serie de tiempo real vs comparada para AR(20)}
+	\label{fig:M3_AR2_grafico_tiempo}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/AR_2_error_grafico.PNG}
+	\caption{Gráfico de error para el training y testingo de modelo AR(20)}
+	\label{fig:M3_AR2_grafico_error}
+\end{figure}
+
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{rr|r}
+		\hline \hline
+		&	Entrenamiento & Prueba \\
+		\hline
+		\textbf{RMSE}   				& 0.92 & 1.01 \\
+		\textbf{Media}     				& 0.036  & 0.057  \\
+		\textbf{Desviación estándar} 	& 0.98 & 1.02 \\ 
+		\hline \hline
+	\end{tabular}
+	\caption{Resumen de métricas para datos con filtro FIR}
+	\label{table:M3_AR2_metricas}
+\end{table}
+
+
+
+
+
+
+
+\subsubsection{Modelo AR con filtro ventana móvil}
+
+Finalmente, para el ultimo conjunto de datos se realizó el mismo procedimiento que antes, pero esta vez hasta $n_a=150$. Los resultados se ven en la figura \ref{fig:M3_AR3_RMSE}.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/AR_3_RMSE.PNG}
+	\caption{Gráfico del RMSE para distintos ordenes del modelo}
+	\label{fig:M3_AR3_RMSE}
+\end{figure}
+
+Notamos que este gráfico está pareciera estabilizarse para $n_a=20$, obteniendo un buen desempeño cercano a 80.
+
+Nuevamente notamos que ahora el modelo necesita muchos valores del vector de parámetros, y que estos son oscilantes, al igual que en el modelo FIR, aunque de una amplitud menor. Además, notamos que cerca de $80$ pareciera que estos s estabilizan un poco, por lo que este es el valor escogido.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/AR_3_theta.PNG}
+	\caption{Gráfico parámetros de $\theta$ para distintos ordenes del modelo}
+	\label{fig:M3_AR3_theta}
+\end{figure}
+
+En la figura \ref{fig:M3_AR3_grafico_tiempo} y \ref{fig:M3_AR3_grafico_error} se puede ver el gráfico en el tiempo y los gráficos del error respectivamente. En la tabla \ref{table:M3_AR3_metricas} se pueden el resumen de las métricas.
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/AR_3_grafico_tiempo.PNG}
+	\caption{Gráfico de serie de tiempo real vs comparada para AR(20)}
+	\label{fig:M3_AR3_grafico_tiempo}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=6.5in]{3-Modelos_AR/figs/AR_3_error_grafico.PNG}
+	\caption{Gráfico de error para el training y testingo de modelo AR(80)}
+	\label{fig:M3_AR3_grafico_error}
+\end{figure}
+
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{rr|r}
+		\hline \hline
+		&	Entrenamiento & Prueba \\
+		\hline
+		\textbf{RMSE}   				& 15.48 & 19.21 \\
+		\textbf{Media}     				& 0.72  & 0.62  \\
+		\textbf{Desviación estándar} 	& 15.47 & 19.22 \\ 
+		\hline \hline
+	\end{tabular}
+	\caption{Resumen de métricas para datos con filtro de ventana móvil}
+	\label{table:M3_AR3_metricas}
+\end{table}
